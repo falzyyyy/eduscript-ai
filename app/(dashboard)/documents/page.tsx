@@ -208,6 +208,54 @@ export default function DocumentsPage() {
       )
     }
 
+    if (doc.type === 'quiz') {
+      const quiz = parsed as QuizOutput
+      return (
+        <div className="space-y-6 pt-2 text-sm text-gray-300">
+          <div className="border-b border-white/[0.04] pb-3">
+            <h3 className="font-semibold text-white text-base">{quiz.title}</h3>
+            <p className="text-xs text-gray-400 mt-1">Jumlah Soal: {quiz.questions?.length || 0} Butir</p>
+          </div>
+          <div className="space-y-4">
+            {quiz.questions?.map((q, idx) => (
+              <div key={idx} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-4 space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <span className="text-xs font-bold bg-violet-500/20 text-violet-400 px-2 py-0.5 rounded-lg shrink-0 mt-0.5">
+                    Soal {idx + 1}
+                  </span>
+                  <p className="text-white font-medium leading-relaxed">{q.question}</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-2">
+                  {q.options?.map((opt, i) => {
+                    const optLetter = opt.charAt(0).toUpperCase()
+                    const isCorrect = optLetter === q.answer.toUpperCase() || opt.toLowerCase().startsWith(q.answer.toLowerCase())
+                    return (
+                      <div 
+                        key={i} 
+                        className={`text-xs p-2.5 rounded-lg border transition-all ${
+                          isCorrect 
+                            ? 'bg-green-500/10 border-green-500/30 text-green-400 font-medium' 
+                            : 'bg-white/[0.01] border-white/[0.04] text-gray-400'
+                        }`}
+                      >
+                        <span className="mr-1">{isCorrect ? '✓' : '•'}</span> {opt}
+                      </div>
+                    )
+                  })}
+                </div>
+                {q.explanation && (
+                  <div className="bg-white/[0.03] border-l-2 border-violet-500 rounded-r-xl p-3 text-xs text-gray-400 leading-relaxed pl-3.5">
+                    <span className="font-semibold text-violet-400 block mb-0.5">Penjelasan Kunci Jawaban:</span>
+                    {q.explanation}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
     // Default raw fallback
     return (
       <pre className="text-xs text-gray-400 whitespace-pre-wrap font-mono bg-white/[0.01] rounded-lg p-4 max-h-96 overflow-y-auto">
