@@ -31,9 +31,7 @@ alter table public.class_enrollments enable row level security;
 -- 5. RLS Policies — Classes
 create policy "Users can view authorized classes"
   on public.classes for select using (
-    auth.uid() = teacher_id or 
-    exists (select 1 from public.class_enrollments where student_id = auth.uid() and class_id = classes.id) or
-    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+    auth.uid() is not null
   );
 
 create policy "Teachers can create classes"
