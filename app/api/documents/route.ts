@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { type, title, topic, content, metadata, class_group, subject, prerequisite_id } = body
+  const { type, title, topic, content, metadata, class_group, subject, prerequisite_id, class_id } = body
 
   const { data, error } = await supabase
     .from('documents')
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       class_group,
       subject,
       prerequisite_id: prerequisite_id || null,
+      class_id: class_id || null,
     })
     .select()
     .single()

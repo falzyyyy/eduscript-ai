@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { OutputViewer } from './OutputViewer'
+import { createClient } from '@/lib/supabase/client'
 
 export function LessonPlanForm() {
   const [topik, setTopik] = useState('')
@@ -20,7 +21,11 @@ export function LessonPlanForm() {
   const [prereqList, setPrereqList] = useState<any[]>([])
   const [selectedPrereq, setSelectedPrereq] = useState<string>('tidak_ada')
 
-  // Fetch previous documents for prerequisites list
+  // Classroom selection state
+  const [classesList, setClassesList] = useState<any[]>([])
+  const [selectedClass, setSelectedClass] = useState<string>('tidak_ada')
+
+  // Fetch previous documents and teacher classes
   useEffect(() => {
     fetch('/api/documents')
       .then(res => res.json())
@@ -30,6 +35,18 @@ export function LessonPlanForm() {
         }
       })
       .catch(err => console.error(err))
+
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('classes')
+          .select('*')
+          .eq('teacher_id', user.id)
+          .then(({ data: cls }) => {
+            if (cls) setClassesList(cls)
+          })
+      }
+    })
   }, [])
 
   async function handleGenerate() {
@@ -83,6 +100,7 @@ export function LessonPlanForm() {
           class_group: jurusan,
           subject: mapel,
           prerequisite_id: selectedPrereq === 'tidak_ada' ? null : selectedPrereq,
+          class_id: selectedClass === 'tidak_ada' ? null : selectedClass,
         }),
       })
     } catch {
@@ -120,7 +138,7 @@ export function LessonPlanForm() {
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <Label className="text-gray-300 text-sm mb-1.5 block">Jurusan / Kelas</Label>
               <Select value={jurusan} onValueChange={(v) => v && setJurusan(v)}>
@@ -174,6 +192,22 @@ export function LessonPlanForm() {
                   {prereqList.map((prereq) => (
                     <SelectItem key={prereq.id} value={prereq.id}>
                       {prereq.title.replace('Kuis: ', '').substring(0, 20)}...
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-gray-300 text-sm mb-1.5 block">Hubungkan ke Kelas</Label>
+              <Select value={selectedClass} onValueChange={(v) => v && setSelectedClass(v)}>
+                <SelectTrigger className="h-11 bg-white/[0.03] border-white/[0.08] text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tidak_ada">Tidak Ada</SelectItem>
+                  {classesList.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

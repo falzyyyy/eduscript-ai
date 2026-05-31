@@ -49,11 +49,17 @@ export async function DELETE(
     return NextResponse.json({ error: 'Anda tidak dapat menghapus akun Anda sendiri' }, { status: 400 })
   }
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceKey) {
+    return NextResponse.json({ 
+      error: 'Kunci rahasia SUPABASE_SERVICE_ROLE_KEY belum terpasang atau kosong di Environment Variables Vercel Anda. Silakan tambahkan di pengaturan Vercel lalu lakukan redeploy.' 
+    }, { status: 500 })
+  }
+
   // 4. Delete user using Supabase service role admin client
-  const supabaseAdmin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabaseAdmin = createAdminClient(url, serviceKey)
 
   const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(targetId)
 
