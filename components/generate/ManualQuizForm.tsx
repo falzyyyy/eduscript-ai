@@ -26,6 +26,7 @@ export function ManualQuizForm() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [composerError, setComposerError] = useState('')
 
   // Active question being composed
   const [qType, setQType] = useState<'mcq' | 'essay'>('mcq')
@@ -54,18 +55,18 @@ export function ManualQuizForm() {
 
   function handleAddQuestion() {
     if (!qText.trim()) {
-      setError('Teks pertanyaan wajib diisi!')
+      setComposerError('Teks pertanyaan wajib diisi!')
       return
     }
 
     if (qType === 'mcq') {
       if (!optA.trim() || !optB.trim() || !optC.trim() || !optD.trim()) {
-        setError('Semua pilihan opsi A, B, C, dan D wajib diisi!')
+        setComposerError('Semua pilihan opsi A, B, C, dan D wajib diisi!')
         return
       }
     } else {
       if (!qAnswerEssay.trim()) {
-        setError('Kunci jawaban acuan guru wajib diisi untuk jenis Essay!')
+        setComposerError('Kunci jawaban acuan guru wajib diisi untuk jenis Essay!')
         return
       }
     }
@@ -93,7 +94,7 @@ export function ManualQuizForm() {
     setOptD('')
     setQAnswerEssay('')
     setQExplanation('')
-    setError('')
+    setComposerError('')
   }
 
   function handleRemoveQuestion(idx: number) {
@@ -229,14 +230,17 @@ export function ManualQuizForm() {
       </div>
 
       {/* 2. Composer Section */}
-      <div className="bg-[#0d1224]/60 border border-white/[0.06] rounded-2xl p-6 space-y-4">
+      <div className="bg-[#0d1224]/60 border border-white/[0.06] rounded-2xl p-6 space-y-4 relative">
         <h3 className="text-base font-semibold text-white">2. Tambah Pertanyaan</h3>
         
         {/* Toggle Tipe Soal */}
         <div className="flex gap-2 p-1 bg-white/[0.02] border border-white/[0.06] rounded-xl w-fit">
           <button
             type="button"
-            onClick={() => setQType('mcq')}
+            onClick={() => {
+              setQType('mcq')
+              setError('')
+            }}
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
               qType === 'mcq' 
                 ? 'bg-violet-600 text-white shadow-md' 
@@ -247,7 +251,10 @@ export function ManualQuizForm() {
           </button>
           <button
             type="button"
-            onClick={() => setQType('essay')}
+            onClick={() => {
+              setQType('essay')
+              setError('')
+            }}
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
               qType === 'essay' 
                 ? 'bg-violet-600 text-white shadow-md' 
@@ -264,7 +271,10 @@ export function ManualQuizForm() {
           <textarea
             placeholder="Ketik soal atau pertanyaan di sini..."
             value={qText}
-            onChange={(e) => setQText(e.target.value)}
+            onChange={(e) => {
+              setQText(e.target.value)
+              setComposerError('')
+            }}
             className="w-full h-24 bg-white/[0.03] border border-white/[0.08] text-white rounded-xl p-3 placeholder:text-gray-600 focus:outline-none focus:border-violet-500 text-sm transition-colors"
           />
         </div>
@@ -277,7 +287,10 @@ export function ManualQuizForm() {
               <Input
                 placeholder="Isi opsi pilihan A..."
                 value={optA}
-                onChange={(e) => setOptA(e.target.value)}
+                onChange={(e) => {
+                  setOptA(e.target.value)
+                  setComposerError('')
+                }}
                 className="h-10 bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-600 text-sm"
               />
             </div>
@@ -286,7 +299,10 @@ export function ManualQuizForm() {
               <Input
                 placeholder="Isi opsi pilihan B..."
                 value={optB}
-                onChange={(e) => setOptB(e.target.value)}
+                onChange={(e) => {
+                  setOptB(e.target.value)
+                  setComposerError('')
+                }}
                 className="h-10 bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-600 text-sm"
               />
             </div>
@@ -295,7 +311,10 @@ export function ManualQuizForm() {
               <Input
                 placeholder="Isi opsi pilihan C..."
                 value={optC}
-                onChange={(e) => setOptC(e.target.value)}
+                onChange={(e) => {
+                  setOptC(e.target.value)
+                  setComposerError('')
+                }}
                 className="h-10 bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-600 text-sm"
               />
             </div>
@@ -304,7 +323,10 @@ export function ManualQuizForm() {
               <Input
                 placeholder="Isi opsi pilihan D..."
                 value={optD}
-                onChange={(e) => setOptD(e.target.value)}
+                onChange={(e) => {
+                  setOptD(e.target.value)
+                  setComposerError('')
+                }}
                 className="h-10 bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-600 text-sm"
               />
             </div>
@@ -329,7 +351,10 @@ export function ManualQuizForm() {
             <textarea
               placeholder="Tulis poin acuan atau jawaban ideal sebagai kriteria grading AI..."
               value={qAnswerEssay}
-              onChange={(e) => setQAnswerEssay(e.target.value)}
+              onChange={(e) => {
+                setQAnswerEssay(e.target.value)
+                setComposerError('')
+              }}
               className="w-full h-20 bg-white/[0.03] border border-white/[0.08] text-white rounded-xl p-3 placeholder:text-gray-600 focus:outline-none focus:border-violet-500 text-sm transition-colors"
             />
           </div>
@@ -341,10 +366,20 @@ export function ManualQuizForm() {
           <textarea
             placeholder="Pembahasan pengerjaan soal..."
             value={qExplanation}
-            onChange={(e) => setQExplanation(e.target.value)}
+            onChange={(e) => {
+              setQExplanation(e.target.value)
+              setComposerError('')
+            }}
             className="w-full h-16 bg-white/[0.03] border border-white/[0.08] text-white rounded-xl p-3 placeholder:text-gray-600 focus:outline-none focus:border-violet-500 text-sm transition-colors"
           />
         </div>
+
+        {/* Dynamic localized error inside card */}
+        {composerError && (
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+            ⚠️ {composerError}
+          </div>
+        )}
 
         <Button
           type="button"
