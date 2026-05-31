@@ -227,6 +227,7 @@ export default function ClassroomPage() {
         type: 'file_material',
         topic: 'Materi Berkas',
         class_id: activeClass.id,
+        user_id: currentUser.id,
         content: JSON.stringify({
           file_url: fileUrl,
           file_name: uploadMethod === 'upload' ? uploadFile?.name : uploadTitle,
