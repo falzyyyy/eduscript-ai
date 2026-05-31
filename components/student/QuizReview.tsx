@@ -2,6 +2,7 @@
 import { Button } from '@/components/ui/button'
 
 interface QuizQuestion {
+  type?: 'mcq' | 'essay'
   question: string
   options: string[]
   answer: string
@@ -14,7 +15,7 @@ interface QuizAttempt {
   score: number
   total_questions: number
   created_at: string
-  answers: Record<string, string>
+  answers: Record<string, any>
   documents?: {
     title: string
     topic: string
@@ -146,7 +147,71 @@ export function QuizReview({ attempt, onClose }: QuizReviewProps) {
         <h3 className="text-lg font-bold text-white print:text-black tracking-tight border-b border-white/[0.04] pb-2">Detail Soal & Jawaban</h3>
         
         {parsedQuestions.map((q, qIdx) => {
-          const studentAns = attempt.answers[qIdx.toString()] || attempt.answers[qIdx]
+          const rawAns = attempt.answers[qIdx.toString()] || attempt.answers[qIdx]
+          
+          if (q.type === 'essay' || !q.options || q.options.length === 0) {
+            // Essay question review
+            const studentText = typeof rawAns === 'object' && rawAns !== null ? rawAns.student_answer : (typeof rawAns === 'string' ? rawAns : '(Tidak ada jawaban)')
+            const essayScore = typeof rawAns === 'object' && rawAns !== null ? rawAns.score : 0
+            const aiFeedback = typeof rawAns === 'object' && rawAns !== null ? rawAns.feedback : null
+            const isPassedEssay = essayScore >= 70
+
+            return (
+              <div 
+                key={qIdx} 
+                className={`border rounded-2xl p-5 space-y-4 print:border-gray-300 print:break-inside-avoid ${
+                  isPassedEssay 
+                    ? 'bg-emerald-500/[0.02] border-emerald-500/20 print:bg-green-50 print:border-green-300' 
+                    : 'bg-rose-500/[0.02] border-rose-500/20 print:bg-red-50 print:border-red-300'
+                }`}
+              >
+                {/* Question Text */}
+                <div className="flex items-start gap-3 justify-between">
+                  <h4 className="text-sm font-medium text-white print:text-black leading-relaxed">
+                    <span className="text-gray-400 print:text-gray-600 font-bold mr-2">{qIdx + 1}.</span>
+                    {q.question}
+                  </h4>
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${
+                    isPassedEssay 
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 print:bg-green-100 print:text-green-800' 
+                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 print:bg-red-100 print:text-red-800'
+                  }`}>
+                    Skor AI: {essayScore}/100
+                  </span>
+                </div>
+
+                {/* Answers Comparison */}
+                <div className="pl-4 border-l border-white/[0.04] print:border-gray-200 space-y-2">
+                  <div className="text-xs text-gray-300 print:text-gray-700">
+                    <span className="text-gray-500 print:text-gray-500 block mb-0.5">Jawaban Anda:</span>
+                    <p className="italic bg-white/[0.02] print:bg-gray-50 p-2.5 rounded-lg border border-white/[0.04] print:border-gray-200 leading-relaxed">
+                      {studentText}
+                    </p>
+                  </div>
+                  <div className="text-xs text-emerald-400 print:text-emerald-800">
+                    <span className="text-gray-500 print:text-gray-500 block mb-0.5">Kunci Jawaban Acuan Guru:</span>
+                    <p className="bg-emerald-500/5 print:bg-green-50 p-2.5 rounded-lg border border-emerald-500/10 print:border-green-200 leading-relaxed">
+                      {q.answer}
+                    </p>
+                  </div>
+                </div>
+
+                {/* AI Feedback */}
+                {aiFeedback && (
+                  <div className="text-xs text-gray-400 print:text-gray-700 bg-[#0d1224]/80 border border-white/[0.04] p-3 rounded-xl flex items-start gap-2.5 print:bg-purple-50 print:border-purple-300 print:text-purple-900">
+                    <span className="text-violet-400 text-sm">💡</span>
+                    <div>
+                      <span className="font-semibold text-violet-300 print:text-purple-800 block mb-0.5">Penilaian & Umpan Balik AI:</span>
+                      {aiFeedback}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          // MCQ question review
+          const studentAns = typeof rawAns === 'string' ? rawAns : ''
           const correctAns = q.answer
           const isCorrect = studentAns === correctAns
 

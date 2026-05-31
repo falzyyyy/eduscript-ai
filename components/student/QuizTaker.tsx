@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 
 interface Question {
+  type?: 'mcq' | 'essay'
   question: string
   options: string[]
   answer: string
@@ -28,6 +30,7 @@ export function QuizTaker({ documentId, title, topic, content, onClose }: QuizTa
 
   const [currentIdx, setCurrentIdx] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({})
+  const [gradedAnswers, setGradedAnswers] = useState<Record<number, any>>({})
   const [submitted, setSubmitted] = useState(false)
   const [score, setScore] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -64,20 +67,51 @@ export function QuizTaker({ documentId, title, topic, content, onClose }: QuizTa
     setError('')
     setLoading(true)
 
-    // Calculate score
-    let correctCount = 0
-    parsedQuestions.forEach((q, idx) => {
-      const selected = selectedAnswers[idx]
-      // Compare only the first letter or exact match
-      if (selected === q.answer) {
-        correctCount++
-      }
-    })
-
-    const finalScore = Math.round((correctCount / totalQuestions) * 100)
-    setScore(finalScore)
-
     try {
+      const gradedAnswersPayload: Record<number, any> = {}
+      let totalScoreSum = 0
+
+      // Grade questions one by one (MCQ or AI Essay)
+      for (let idx = 0; idx < totalQuestions; idx++) {
+        const q = parsedQuestions[idx]
+        const selected = selectedAnswers[idx]
+
+        if (q.type === 'essay' || !q.options || q.options.length === 0) {
+          // Call AI essay grading API
+          const gradeRes = await fetch('/api/quiz/grade-essay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question: q.question,
+              studentAnswer: selected,
+              keyAnswer: q.answer
+            })
+          })
+
+          if (!gradeRes.ok) {
+            throw new Error(`Gagal menilai soal essay nomor ${idx + 1} dengan AI.`)
+          }
+
+          const gradeData = await gradeRes.json()
+          totalScoreSum += gradeData.score
+          gradedAnswersPayload[idx] = {
+            student_answer: selected,
+            score: gradeData.score,
+            feedback: gradeData.explanation
+          }
+        } else {
+          // MCQ calculation
+          const isCorrect = selected === q.answer
+          const scoreVal = isCorrect ? 100 : 0
+          totalScoreSum += scoreVal
+          gradedAnswersPayload[idx] = selected // keep compatibility for MCQ
+        }
+      }
+
+      const finalScore = Math.round(totalScoreSum / totalQuestions)
+      setScore(finalScore)
+      setGradedAnswers(gradedAnswersPayload)
+
       const res = await fetch('/api/quiz-attempts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,7 +119,7 @@ export function QuizTaker({ documentId, title, topic, content, onClose }: QuizTa
           document_id: documentId,
           score: finalScore,
           total_questions: totalQuestions,
-          answers: selectedAnswers,
+          answers: gradedAnswersPayload,
         }),
       })
 
@@ -141,35 +175,51 @@ export function QuizTaker({ documentId, title, topic, content, onClose }: QuizTa
               {currentQuestion.question}
             </h3>
 
-            {/* Options List */}
-            <div className="grid grid-cols-1 gap-3 pt-2">
-              {currentQuestion.options.map((opt, oIdx) => {
-                // Determine option letter from first char (A, B, C, D)
-                const letter = opt.trim().charAt(0).toUpperCase()
-                const isSelected = selectedAnswers[currentIdx] === letter
+            {/* Options List or Essay Input */}
+            {currentQuestion.type === 'essay' || !currentQuestion.options || currentQuestion.options.length === 0 ? (
+              <div className="space-y-2 pt-2">
+                <Label className="text-gray-300 text-xs font-semibold block">Tulis Jawaban Anda:</Label>
+                <textarea
+                  placeholder="Ketik jawaban lengkap Anda di sini..."
+                  value={selectedAnswers[currentIdx] || ''}
+                  onChange={(e) => {
+                    setSelectedAnswers(prev => ({
+                      ...prev,
+                      [currentIdx]: e.target.value
+                    }))
+                  }}
+                  className="w-full h-36 bg-white/[0.03] border border-white/[0.08] text-white rounded-xl p-3 placeholder:text-gray-600 focus:outline-none focus:border-violet-500 text-sm transition-colors"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 pt-2">
+                {currentQuestion.options.map((opt, oIdx) => {
+                  const letter = opt.trim().charAt(0).toUpperCase()
+                  const isSelected = selectedAnswers[currentIdx] === letter
 
-                return (
-                  <button
-                    key={oIdx}
-                    onClick={() => handleSelectOption(letter)}
-                    className={`text-left p-4 rounded-xl border text-sm transition-all duration-200 flex items-start gap-3 ${
-                      isSelected 
-                        ? 'bg-violet-600/20 border-violet-500 text-white shadow-lg shadow-violet-500/10' 
-                        : 'bg-white/[0.02] border-white/[0.06] text-gray-300 hover:bg-white/[0.04] hover:border-white/[0.1]'
-                    }`}
-                  >
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border shrink-0 ${
-                      isSelected
-                        ? 'bg-violet-500 text-white border-transparent'
-                        : 'bg-white/[0.04] border-white/[0.1] text-gray-400'
-                    }`}>
-                      {letter}
-                    </span>
-                    <span className="pt-0.5">{opt}</span>
-                  </button>
-                )
-              })}
-            </div>
+                  return (
+                    <button
+                      key={oIdx}
+                      onClick={() => handleSelectOption(letter)}
+                      className={`text-left p-4 rounded-xl border text-sm transition-all duration-200 flex items-start gap-3 ${
+                        isSelected 
+                          ? 'bg-violet-600/20 border-violet-500 text-white shadow-lg shadow-violet-500/10' 
+                          : 'bg-white/[0.02] border-white/[0.06] text-gray-300 hover:bg-white/[0.04] hover:border-white/[0.1]'
+                      }`}
+                    >
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border shrink-0 ${
+                        isSelected
+                          ? 'bg-violet-500 text-white border-transparent'
+                          : 'bg-white/[0.04] border-white/[0.1] text-gray-400'
+                      }`}>
+                        {letter}
+                      </span>
+                      <span className="pt-0.5">{opt}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Navigation Controls */}
@@ -195,7 +245,7 @@ export function QuizTaker({ documentId, title, topic, content, onClose }: QuizTa
                 disabled={loading}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25"
               >
-                {loading ? 'Mengirim...' : 'Kirim Jawaban'}
+                {loading ? 'Menilai dengan AI...' : 'Kirim Jawaban'}
               </Button>
             )}
           </div>
@@ -231,6 +281,67 @@ export function QuizTaker({ documentId, title, topic, content, onClose }: QuizTa
             {parsedQuestions.map((q, qIdx) => {
               const studentAns = selectedAnswers[qIdx]
               const correctAns = q.answer
+
+              if (q.type === 'essay' || !q.options || q.options.length === 0) {
+                const gradeInfo = gradedAnswers[qIdx] || {}
+                const essayScore = gradeInfo.score ?? 0
+                const isPassedEssay = essayScore >= 70
+
+                return (
+                  <div 
+                    key={qIdx} 
+                    className={`border rounded-2xl p-5 space-y-4 ${
+                      isPassedEssay
+                        ? 'bg-emerald-500/[0.02] border-emerald-500/20' 
+                        : 'bg-rose-500/[0.02] border-rose-500/20'
+                    }`}
+                  >
+                    {/* Question Title */}
+                    <div className="flex items-start gap-3 justify-between">
+                      <h4 className="text-sm font-medium text-white leading-relaxed">
+                        <span className="text-gray-400 font-bold mr-2">{qIdx + 1}.</span>
+                        {q.question}
+                      </h4>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0 ${
+                        isPassedEssay
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      }`}>
+                        Skor AI: {essayScore}/100
+                      </span>
+                    </div>
+
+                    {/* Answers Comparison */}
+                    <div className="pl-4 border-l border-white/[0.04] space-y-2">
+                      <div className="text-xs text-gray-300">
+                        <span className="text-gray-500 block mb-0.5">Jawaban Anda:</span>
+                        <p className="italic bg-white/[0.02] p-2.5 rounded-lg border border-white/[0.04] leading-relaxed">
+                          {studentAns || '(Tidak ada jawaban)'}
+                        </p>
+                      </div>
+                      <div className="text-xs text-emerald-400">
+                        <span className="text-gray-500 block mb-0.5">Kunci Jawaban Acuan Guru:</span>
+                        <p className="bg-emerald-500/5 p-2.5 rounded-lg border border-emerald-500/10 leading-relaxed">
+                          {correctAns}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* AI Feedback */}
+                    {gradeInfo.feedback && (
+                      <div className="text-xs text-gray-400 bg-[#0d1224]/80 border border-white/[0.04] p-3 rounded-xl flex items-start gap-2.5">
+                        <span className="text-violet-400 text-sm">💡</span>
+                        <div>
+                          <span className="font-semibold text-violet-300 block mb-0.5">Penilaian & Umpan Balik AI:</span>
+                          {gradeInfo.feedback}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              // MCQ review
               const isCorrect = studentAns === correctAns
 
               return (
@@ -299,3 +410,4 @@ export function QuizTaker({ documentId, title, topic, content, onClose }: QuizTa
     </div>
   )
 }
+
