@@ -6,8 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useToast } from '@/components/ui/Toast'
 
 export default function AdminUsersPage() {
+  const { toasts, addToast, ToastComponent } = useToast()
   const [users, setUsers] = useState<Profile[]>([])
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,23 +58,25 @@ export default function AdminUsersPage() {
   async function updateRole(userId: string, role: UserRole) {
     // Restrict Guru from changing roles
     if (currentUser?.role === 'guru') {
-      alert('Guru tidak memiliki izin untuk mengubah peran pengguna.')
+      addToast('Akses Ditolak', 'Guru tidak memiliki izin untuk mengubah peran pengguna.', 'error')
       return
     }
 
     await supabase.from('profiles').update({ role }).eq('id', userId)
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u))
+    addToast('Peran Diperbarui', 'Berhasil memperbarui peran pengguna.', 'success')
   }
 
   async function updateQuota(userId: string, quotaLimit: number) {
     // Restrict Guru from changing quota
     if (currentUser?.role === 'guru') {
-      alert('Guru tidak memiliki izin untuk mengubah kuota pengguna.')
+      addToast('Akses Ditolak', 'Guru tidak memiliki izin untuk mengubah kuota pengguna.', 'error')
       return
     }
 
     await supabase.from('profiles').update({ quota_limit: quotaLimit }).eq('id', userId)
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, quota_limit: quotaLimit } : u))
+    addToast('Kuota Diperbarui', `Berhasil memperbarui kuota menjadi ${quotaLimit}.`, 'success')
   }
 
   async function handleDelete(userId: string) {
@@ -88,13 +92,13 @@ export default function AdminUsersPage() {
 
       if (res.ok) {
         setUsers(prev => prev.filter(u => u.id !== userId))
-        alert('Akun berhasil dihapus secara permanen.')
+        addToast('Akun Dihapus', 'Akun berhasil dihapus secara permanen.', 'success')
       } else {
         const errData = await res.json()
-        alert(errData.error || 'Gagal menghapus akun.')
+        addToast('Hapus Gagal', errData.error || 'Gagal menghapus akun.', 'error')
       }
     } catch {
-      alert('Terjadi kesalahan koneksi server.')
+      addToast('Kesalahan Koneksi', 'Terjadi kesalahan koneksi server.', 'error')
     }
   }
 
@@ -451,6 +455,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
+      <ToastComponent />
     </div>
   )
 }

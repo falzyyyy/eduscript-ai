@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { QuizTaker } from '@/components/student/QuizTaker'
 import { QuizReview } from '@/components/student/QuizReview'
+import { useToast } from '@/components/ui/Toast'
+import { Trash2, Copy, Plus, School, Award, Users, FileText, ArrowLeft, Upload, Link2, ExternalLink, Download } from 'lucide-react'
 
 interface ClassData {
   id: string
@@ -23,6 +25,7 @@ interface EnrollmentData {
 }
 
 export default function ClassroomPage() {
+  const { toasts, addToast, ToastComponent } = useToast()
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [classes, setClasses] = useState<ClassData[]>([])
   const [enrollments, setEnrollments] = useState<EnrollmentData[]>([])
@@ -291,6 +294,63 @@ export default function ClassroomPage() {
     }
   }
 
+  // Delete a Class (Guru)
+  async function handleDeleteClass(classId: string) {
+    const confirmDelete = confirm(
+      'Apakah Anda yakin ingin menghapus kelas ini secara permanen?\nSemua murid terdaftar, berkas materi, RPP, dan kuis terkait akan ikut dihapus secara bersih dari database.'
+    )
+    if (!confirmDelete) return
+
+    setLoading(true)
+    try {
+      const { error } = await supabase
+        .from('classes')
+        .delete()
+        .eq('id', classId)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setClasses(prev => prev.filter(c => c.id !== classId))
+      setEnrollments(prev => prev.filter(e => e.class_id !== classId))
+      
+      if (activeClass?.id === classId) {
+        setActiveClass(null)
+      }
+
+      addToast('Kelas Dihapus', 'Ruang kelas berhasil dihapus secara permanen.', 'success')
+    } catch (err: any) {
+      addToast('Gagal Menghapus', err.message || 'Gagal menghapus kelas.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Delete a Material/Document (Guru)
+  async function handleDeleteMaterial(docId: string) {
+    const confirmDelete = confirm(
+      'Apakah Anda yakin ingin menghapus berkas/kuis pembelajaran ini secara permanen?'
+    )
+    if (!confirmDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', docId)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setClassDocuments(prev => prev.filter(d => d.id !== docId))
+      addToast('Materi Dihapus', 'Materi/kuis pembelajaran berhasil dihapus.', 'success')
+    } catch (err: any) {
+      addToast('Gagal Menghapus', err.message || 'Gagal menghapus materi.', 'error')
+    }
+  }
+
 
   // Create Class (Guru)
   async function handleCreateClass(e: React.FormEvent) {
@@ -316,9 +376,9 @@ export default function ClassroomPage() {
       setShowCreateModal(false)
       setClassName('')
       setClassSubject('')
-      alert(`Kelas "${className}" berhasil dibuat!\nKode Kelas: ${code}`)
+      addToast('Kelas Dibuat', `Kelas "${className}" berhasil dibuat! Kode: ${code}`, 'success')
     } else {
-      alert(error?.message || 'Gagal membuat kelas')
+      addToast('Gagal Membuat', error?.message || 'Gagal membuat kelas', 'error')
     }
   }
 
@@ -335,7 +395,7 @@ export default function ClassroomPage() {
       .single()
 
     if (clsError || !cls) {
-      alert('Kode kelas tidak valid atau kelas tidak ditemukan.')
+      addToast('Kode Tidak Valid', 'Kode kelas tidak valid atau kelas tidak ditemukan.', 'error')
       return
     }
 
@@ -351,19 +411,19 @@ export default function ClassroomPage() {
       setEnrollments(prev => [...prev, { class_id: cls.id, classes: cls }])
       setShowJoinModal(false)
       setJoinCode('')
-      alert(`Berhasil bergabung ke kelas "${cls.name}"!`)
+      addToast('Gabung Kelas', `Berhasil bergabung ke kelas "${cls.name}"!`, 'success')
     } else {
       if (enrollError.code === '23505') {
-        alert('Anda sudah terdaftar di kelas ini.')
+        addToast('Sudah Terdaftar', 'Anda sudah terdaftar di kelas ini.', 'info')
       } else {
-        alert('Gagal bergabung ke kelas.')
+        addToast('Gagal Bergabung', 'Gagal bergabung ke kelas.', 'error')
       }
     }
   }
 
   function copyCode(code: string) {
     navigator.clipboard.writeText(code)
-    alert(`Kode kelas "${code}" telah disalin ke clipboard!`)
+    addToast('Salin Kode', `Kode kelas "${code}" telah disalin ke clipboard!`, 'success')
   }
 
   // Back to classes view
@@ -434,17 +494,28 @@ export default function ClassroomPage() {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleBack}
-            className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] flex items-center justify-center text-white transition-all"
-          >
-            ←
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-white">{activeClass.name}</h1>
-            <p className="text-gray-400 text-xs mt-0.5">{activeClass.subject}</p>
+        <div className="flex items-center justify-between gap-3 w-full">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBack}
+              className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] flex items-center justify-center text-white transition-all"
+            >
+              ←
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-white">{activeClass.name}</h1>
+              <p className="text-gray-400 text-xs mt-0.5">{activeClass.subject}</p>
+            </div>
           </div>
+          {currentUser?.role === 'guru' && (
+            <button
+              onClick={() => handleDeleteClass(activeClass.id)}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 flex items-center gap-1.5 transition-all text-xs font-semibold"
+              title="Hapus Kelas Ini"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Hapus Kelas
+            </button>
+          )}
         </div>
       )}
 
@@ -511,12 +582,21 @@ export default function ClassroomPage() {
                       Salin Kode
                     </button>
                   </div>
-                  <Button
-                    onClick={() => selectClass(cls)}
-                    className="w-full h-10 mt-4 bg-white/[0.03] border border-white/[0.08] text-white hover:bg-blue-600 hover:text-white transition-all text-xs font-semibold rounded-xl"
-                  >
-                    Kelola Kelas
-                  </Button>
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      onClick={() => selectClass(cls)}
+                      className="flex-1 h-10 bg-white/[0.03] border border-white/[0.08] text-white hover:bg-blue-600 hover:text-white transition-all text-xs font-semibold rounded-xl"
+                    >
+                      Kelola Kelas
+                    </Button>
+                    <button
+                      onClick={() => handleDeleteClass(cls.id)}
+                      className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 flex items-center justify-center transition-all shrink-0"
+                      title="Hapus Kelas"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))
             )
@@ -605,7 +685,7 @@ export default function ClassroomPage() {
                                 <h3 className="text-base font-bold text-white mt-2">{doc.title}</h3>
                                 <p className="text-gray-400 text-xs mt-1">Topik: {doc.topic}</p>
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex items-center gap-2">
                                 {isQuiz && currentUser?.role === 'siswa' && (
                                   <Button
                                     onClick={() => setActiveQuiz(doc)}
@@ -614,10 +694,19 @@ export default function ClassroomPage() {
                                     Mulai Kuis
                                   </Button>
                                 )}
-                                {!isQuiz && (
+                                {!isQuiz && currentUser?.role === 'siswa' && (
                                   <span className="text-xs text-gray-500 bg-white/[0.03] border border-white/[0.06] px-3 py-1.5 rounded-xl">
                                     Akses via Dokumen Saya
                                   </span>
+                                )}
+                                {currentUser?.role === 'guru' && (
+                                  <button
+                                    onClick={() => handleDeleteMaterial(doc.id)}
+                                    className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 flex items-center justify-center transition-all shrink-0"
+                                    title="Hapus Materi"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -934,14 +1023,25 @@ export default function ClassroomPage() {
                                   <p className="text-xs text-gray-400 leading-relaxed line-clamp-3 font-normal">{fileData.description}</p>
                                 )}
                               </div>
-                              <a
-                                href={fileData.file_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full h-10 bg-white/[0.03] border border-white/[0.08] hover:bg-emerald-600 text-white transition-all text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5"
-                              >
-                                {isLink ? '🌐 Buka Tautan' : '📥 Unduh Materi'}
-                              </a>
+                              <div className="flex gap-2 w-full">
+                                <a
+                                  href={fileData.file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex-1 h-10 bg-white/[0.03] border border-white/[0.08] hover:bg-emerald-600 text-white transition-all text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5"
+                                >
+                                  {isLink ? '🌐 Buka Tautan' : '📥 Unduh Materi'}
+                                </a>
+                                {currentUser?.role === 'guru' && (
+                                  <button
+                                    onClick={() => handleDeleteMaterial(doc.id)}
+                                    className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 flex items-center justify-center transition-all shrink-0"
+                                    title="Hapus Berkas"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           )
                         })}
@@ -1238,6 +1338,7 @@ export default function ClassroomPage() {
           </div>
         </div>
       )}
+      <ToastComponent />
     </div>
   )
 }
